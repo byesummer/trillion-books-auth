@@ -1,0 +1,9 @@
+package com.nhnacademy.authservice.auth.repository;
+
+import com.nhnacademy.authservice.auth.entity.RefreshToken;
+import org.springframework.data.repository.CrudRepository;
+import org.springframework.stereotype.Repository;
+
+@Repository
+public interface RefreshTokenRepository extends CrudRepository<RefreshToken, String> {
+}

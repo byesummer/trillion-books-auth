@@ -1,0 +1,67 @@
+spring:
+  application:
+    name: auth-service
+
+  # Redis ??
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    ## internal IP
+    # url: jdbc:mysql://10.116.64.14:13306/nhn_academy_12?useSSL=false&serverTimezone=UTC&characterEncoding=UTF-8
+    ## external IP
+    url: jdbc:mysql://220.67.216.14:13306/nhn_academy_12?useSSL=false&serverTimezone=UTC&characterEncoding=UTF-8
+    username: nhn_academy_12
+    password: ${DB_PASSWORD}
+
+  jpa:
+    database-platform: org.hibernate.dialect.MySQLDialect
+    hibernate:
+      ddl-auto: validate # ?? ??? ???? validate, ?? ??? update ?? create
+    properties:
+      hibernate:
+        format_sql: true
+        show_sql: true
+    defer-datasource-initialization: true
+
+  # OAuth2
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-name: google
+            client-id: ${GOOGLE_CLIENT_ID}
+            client-secret: ${GOOGLE_CLIENT_SECRET}
+            redirect-uri: https://trillion-book.shop/login/oauth2/google
+            scope: profile,email
+          payco:
+            client-id: ${PAYCO_CLIENT_ID}
+            client-secret: ${PAYCO_CLIENT_SECRET}
+            redirect-uri: "www.trillion-book.shop/login/oauth2/payco"
+            authorization-grant-type: authorization_code
+            client-authentication-method: client_secret_post
+            scope: public
+            client-name: Payco
+        provider:
+          payco:
+            authorization-uri: https://id.payco.com/oauth2.0/authorize
+            token-uri: https://id.payco.com/oauth2.0/token
+            user-info-uri: https://apis-payco.krp.toastoven.net/payco/friends/find_member_v2.json
+            user-name-attribute: header
+
+  # JWT
+  jwt:
+    secret: REDACTED_USE_ENV_VAR
+
+# Config, Eureka disabled
+cloud:
+  config:
+    enabled: false
+
+eureka:
+  client:
+    enabled: false
