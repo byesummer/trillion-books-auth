@@ -20,7 +20,7 @@ import java.util.Map;
 @Slf4j
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/auth")
+@RequestMapping("/auth")
 public class AuthController {
 
     private final AuthService authService;
@@ -64,7 +64,7 @@ public class AuthController {
     }
 
     // 회원 탈퇴
-    @PostMapping("/withdraw")
+    @DeleteMapping("/withdraw")
     public ResponseEntity<Void> withdraw(
             @RequestHeader("X-Member-Id") Long memberId,
             @RequestHeader(value = "Refresh-Token", required = false) String refreshToken
