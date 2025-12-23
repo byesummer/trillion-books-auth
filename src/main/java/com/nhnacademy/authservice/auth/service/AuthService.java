@@ -108,11 +108,7 @@ public class AuthService {
         RefreshToken storedToken = refreshTokenRepository.findById(refreshToken)
                 .orElseThrow(() -> new InvalidRefreshTokenException("Invalid refresh token (Not found in Redis)"));
 
-        Long memberId = storedToken.getMemberId();
-        String role = storedToken.getRole();
-
-        refreshTokenRepository.deleteById(refreshToken);
-        return generateTokens(memberId, role);
+        return generateTokens(storedToken.getMemberId(), storedToken.getRole());
     }
 
     public void logout(String accessToken) {

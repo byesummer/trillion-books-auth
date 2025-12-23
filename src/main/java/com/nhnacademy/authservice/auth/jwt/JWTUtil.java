@@ -57,12 +57,15 @@ public class JWTUtil {
 
     public String createJwt(Long memberId, String category, String role, Long expiredMs) {
         Date now = new Date();
+        Date past = new Date(now.getTime() - 60000);
+        Date validity = new Date(now.getTime() + expiredMs);
+
         return Jwts.builder()
                 .subject(memberId.toString())
                 .claim("category",category)
                 .claim("role", role)
-                .issuedAt(now)
-                .expiration(new Date(now.getTime() + expiredMs))
+                .issuedAt(past)
+                .expiration(validity)
                 .signWith(secretKey)
                 .compact();
     }

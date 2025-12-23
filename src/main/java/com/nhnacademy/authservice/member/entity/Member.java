@@ -6,14 +6,14 @@ import lombok.*;
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "Member")
+@Table(name = "member")
 @Getter
 @Setter
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Member {
-    // 기본 키 autoincrement
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "member_id")
