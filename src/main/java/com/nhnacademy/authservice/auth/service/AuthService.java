@@ -1,6 +1,5 @@
 package com.nhnacademy.authservice.auth.service;
 
-import com.nhnacademy.authservice.auth.dto.CustomUserDetails;
 import com.nhnacademy.authservice.auth.dto.LoginRequest;
 import com.nhnacademy.authservice.auth.dto.TokenResponse;
 import com.nhnacademy.authservice.auth.entity.RefreshToken;
@@ -25,12 +24,6 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.time.LocalDate;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Service
@@ -62,14 +55,11 @@ public class AuthService {
         result.put("role", role);
         return result;
     }
-
+    //Todo 이거 스프링시큐리티라 가능사용만하면 될 것 같은데?
     public TokenResponse login(LoginRequest request) {
-        Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.memberEmail(), request.memberPassword()));
+        Authentication authentication = authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(request.memberEmail(), request.memberPassword()));
 
-        CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
-
-        Member member = memberRepository.findById(userDetails.getMemberId())
+        Member member = memberRepository.findByMemberEmail(request.memberEmail())
                 .orElseThrow(() -> new UsernameNotFoundException("Member not found"));
 
         member.validateActive();
