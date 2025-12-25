@@ -3,13 +3,11 @@ package com.nhnacademy.authservice.auth.jwt;
 import com.nhnacademy.authservice.auth.dto.oauth2.CustomOAuth2User;
 import com.nhnacademy.authservice.auth.entity.RefreshToken;
 import com.nhnacademy.authservice.auth.repository.RefreshTokenRepository;
-import com.nhnacademy.authservice.member.entity.Member;
-import com.nhnacademy.authservice.member.entity.MemberState;
-import com.nhnacademy.authservice.member.repository.MemberRepository;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.util.Collection;
+import java.util.Iterator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
@@ -17,13 +15,6 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
 import org.springframework.web.util.UriComponentsBuilder;
-
-import java.io.IOException;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
-import java.util.Collection;
-import java.util.Iterator;
-import java.util.Optional;
 
 @Component
 @RequiredArgsConstructor
@@ -58,12 +49,8 @@ public class SocialLoginHandler extends SimpleUrlAuthenticationSuccessHandler {
         // (실무에서는 CustomOAuth2User에 memberId 필드를 추가해서 가져오는 것을 추천)
         Long memberId = 0L; // TODO: DB에서 조회하여 채울 것
 
-        // 토큰 생성
-        long accessExpire = 1800000L;    // 30분
-        long refreshExpire = 86400000L; // 24시간
-
-        String accessToken = jwtUtil.createJwt(memberId, "access", role, accessExpire);
-        String refreshToken = jwtUtil.createJwt(memberId, "refresh", role, refreshExpire);
+        String accessToken = jwtUtil.createJwt(memberId, TokenKinds.ACCESS_TOKEN, role);
+        String refreshToken = jwtUtil.createJwt(memberId, TokenKinds.REFRESH_TOKEN, role);
 
         // Refresh Token 저장 (Redis)
         refreshTokenRepository.save(new RefreshToken(refreshToken, memberId, role));

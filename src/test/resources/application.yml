@@ -1,0 +1,24 @@
+server:
+  port: 14017
+
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    database: h2
+  datasource:
+    url: jdbc:h2:mem:testdb
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jwt:
+    secret: testtesttesttesttesttesttesttest
+
+
+  cloud:
+    config:
+      enabled: false
+
+eureka:
+  client:
+    enabled: false

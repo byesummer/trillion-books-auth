@@ -1,15 +1,15 @@
 package com.nhnacademy.authservice.auth.jwt;
 
+import com.nhnacademy.authservice.global.error.exception.InvalidRefreshTokenException;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
-
-import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
+import javax.crypto.SecretKey;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
 
 @Component
 public class JWTUtil {
@@ -36,12 +36,12 @@ public class JWTUtil {
         return getClaims(token).get("role", String.class);
     }
 
-    public String getCategory(String token) {
-        return getClaims(token).get("category", String.class);
+    private TokenKinds getCategory(String token) {
+        return TokenKinds.valueOf(getClaims(token).get("category", String.class));
     }
 
     // 토큰 만료 확인
-    public Boolean isExpired(String token) {
+    private Boolean isExpired(String token) {
         try {
             getClaims(token);
             return false;
@@ -55,10 +55,10 @@ public class JWTUtil {
         return getClaims(token).getExpiration().getTime();
     }
 
-    public String createJwt(Long memberId, String category, String role, Long expiredMs) {
+    public String createJwt(Long memberId, TokenKinds category, String role) {
         Date now = new Date();
         Date past = new Date(now.getTime() - 60000);
-        Date validity = new Date(now.getTime() + expiredMs);
+        Date validity = new Date(now.getTime() + category.getExpiredTime());
 
         return Jwts.builder()
                 .subject(memberId.toString())
@@ -68,5 +68,26 @@ public class JWTUtil {
                 .expiration(validity)
                 .signWith(secretKey)
                 .compact();
+    }
+    //3개이상 다형성 풀어보셈. 제안
+    public void validateAccessToken(String token) {
+        if (isExpired(token)) {
+            throw new IllegalArgumentException("Expired token");
+        }
+        if (TokenKinds.ACCESS_TOKEN!= getCategory(token)) {
+            throw new InvalidRefreshTokenException("Invalid token category");
+        }
+    }
+    public void validateRefreshToken(String token) {
+        if (token == null) {
+            throw new InvalidRefreshTokenException("Refresh token is null");
+        }
+        if(isExpired(token)) {
+            throw new InvalidRefreshTokenException("Refresh token expired");
+        }
+
+        if (TokenKinds.REFRESH_TOKEN!= getCategory(token)) {
+            throw new InvalidRefreshTokenException("Invalid token category");
+        }
     }
 }

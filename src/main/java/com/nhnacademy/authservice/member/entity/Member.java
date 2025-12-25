@@ -1,9 +1,21 @@
 package com.nhnacademy.authservice.member.entity;
 
-import jakarta.persistence.*;
-import lombok.*;
-
+import com.nhnacademy.authservice.global.error.exception.MemberStateConflictException;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 import java.time.LocalDate;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Entity
 @Table(name = "member")
@@ -48,4 +60,13 @@ public class Member {
         return member;
     }
 
+    public void validateActive() {
+        if (getMemberState() == MemberState.DORMANT) {
+            throw new MemberStateConflictException("휴면 계정입니다. 인증이 필요합니다.", MemberState.DORMANT);
+        }
+
+        if (getMemberState() == MemberState.WITHDRAWAL) {
+            throw new MemberStateConflictException("탈퇴한 회원입니다.", MemberState.WITHDRAWAL);
+        }
+    }
 }
