@@ -5,26 +5,29 @@ import com.nhnacademy.authservice.auth.dto.oauth2.GoogleResponse;
 import com.nhnacademy.authservice.auth.dto.oauth2.OAuth2Response;
 import com.nhnacademy.authservice.auth.dto.oauth2.PaycoResponse;
 import com.nhnacademy.authservice.member.entity.Member;
+import com.nhnacademy.authservice.member.entity.MemberRole;
+import com.nhnacademy.authservice.member.entity.MemberState;
 import com.nhnacademy.authservice.member.repository.MemberRepository;
 import com.nhnacademy.authservice.global.error.exception.OAuthEmailNotFoundException;
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.client.userinfo.DefaultOAuth2UserService;
 import org.springframework.security.oauth2.client.userinfo.OAuth2UserRequest;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.util.Optional;
+import java.util.UUID;
 
 @Service
+@RequiredArgsConstructor
 public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
     private final MemberRepository memberRepository;
+    private final PasswordEncoder passwordEncoder;
 
-    public CustomOAuth2UserService(MemberRepository memberRepository) {
-        this.memberRepository = memberRepository;
-    }
-
-    // Spring Security의 loadUser Override
     @Override
     public OAuth2User loadUser(OAuth2UserRequest request) throws OAuth2AuthenticationException {
         OAuth2User oAuth2User = processOAuth2UserDelegate(request);
@@ -47,9 +50,28 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         // DB에서 이메일로 조회
         Optional<Member> existMember = memberRepository.findByMemberEmail(memberEmail);
 
-        // 이미 가입된 회원: ROLE_MEMBER
-        // 신규 회원: 아직 DB 저장 안 한 상태, ROLE_GUEST
-        return existMember.map(member -> new CustomOAuth2User(oAuth2Response, "ROLE_" + member.getMemberRole().name())).orElseGet(() -> new CustomOAuth2User(oAuth2Response, "ROLE_GUEST"));
+        if (existMember.isPresent()) {
+            return new CustomOAuth2User(oAuth2Response, "ROLE_" + existMember.get().getMemberRole().name());
+        } else {
+            Member newMember = Member.builder()
+                    .memberEmail(memberEmail)
+                    .memberPassword(passwordEncoder.encode(UUID.randomUUID().toString()))
+                    .memberName(oAuth2Response.getName())
+                    .memberBirth(LocalDate.of(1000, 1, 1))
+                    .memberContact(null)
+                    .memberState(MemberState.ACTIVE)
+                    .memberLatestLoginAt(LocalDate.now())
+                    .memberRole(MemberRole.GUEST)
+                    .memberPoint(0)
+                    .memberAccumulateAmount(0)
+                    .memberOauthId(oAuth2Response.getProviderId())
+                    .gradeId(1L)
+                    .build();
+
+            memberRepository.save(newMember);
+
+            return new CustomOAuth2User(oAuth2Response, "ROLE_GUEST");
+        }
     }
 
     protected OAuth2User processOAuth2UserDelegate(OAuth2UserRequest request) {

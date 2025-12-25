@@ -3,6 +3,9 @@ package com.nhnacademy.authservice.auth.jwt;
 import com.nhnacademy.authservice.auth.dto.oauth2.CustomOAuth2User;
 import com.nhnacademy.authservice.auth.entity.RefreshToken;
 import com.nhnacademy.authservice.auth.repository.RefreshTokenRepository;
+import com.nhnacademy.authservice.global.error.exception.MemberNotFoundException;
+import com.nhnacademy.authservice.member.entity.Member;
+import com.nhnacademy.authservice.member.repository.MemberRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
@@ -21,9 +24,10 @@ import org.springframework.web.util.UriComponentsBuilder;
 public class SocialLoginHandler extends SimpleUrlAuthenticationSuccessHandler {
     private final JWTUtil jwtUtil;
     private final RefreshTokenRepository refreshTokenRepository;
+    private final MemberRepository memberRepository;
 
-    // 프론트 서버 주소 (application.yml에서 주입)
-    @Value("${front.server.url:http://localhost:8081}")
+    // 프론트 서버 주소
+    @Value("${front.server.url:http://localhost:10402}")
     private String frontServerUrl;
 
     @Override
@@ -43,11 +47,10 @@ public class SocialLoginHandler extends SimpleUrlAuthenticationSuccessHandler {
         GrantedAuthority auth = iterator.next();
         String role = auth.getAuthority(); // ROLE_MEMBER or ROLE_GUEST
 
-        // *중요* : OAuth2User에 memberId가 없으므로, 이메일 기반으로 토큰을 만들거나
-        // CustomOAuth2UserService에서 attributes에 memberId를 심어줬다고 가정해야 함.
-        // 편의상 여기서는 임시 ID 0L 혹은 DB 조회 로직이 필요함.
-        // (실무에서는 CustomOAuth2User에 memberId 필드를 추가해서 가져오는 것을 추천)
-        Long memberId = 0L; // TODO: DB에서 조회하여 채울 것
+        Member member = memberRepository.findByMemberEmail(memberEmail)
+                .orElseThrow(() -> new MemberNotFoundException("회원 정보를 찾을 수 없습니다."));
+
+        Long memberId = member.getMemberId();
 
         String accessToken = jwtUtil.createJwt(memberId, TokenKinds.ACCESS_TOKEN, role);
         String refreshToken = jwtUtil.createJwt(memberId, TokenKinds.REFRESH_TOKEN, role);
@@ -55,17 +58,25 @@ public class SocialLoginHandler extends SimpleUrlAuthenticationSuccessHandler {
         // Refresh Token 저장 (Redis)
         refreshTokenRepository.save(new RefreshToken(refreshToken, memberId, role));
 
-        // 리다이렉트 URL 생성 (프론트로 토큰 전달)
-        // 주의: Access/Refresh 토큰을 URL에 노출하는 것은 보안상 취약할 수 있으나,
-        // 도메인이 다른 경우(localhost:8080 <-> 8081) 쿠키 공유가 까다로워 이 방식을 사용하거나
-        // '임시 코드'를 발급하고 프론트가 백엔드에 요청해서 토큰을 교환하는 방식(PKCE)을 씁니다.
-        // 여기서는 가장 직관적인 '쿼리 파라미터 전달' 방식을 사용합니다.
+        String targetUrl;
 
-        String targetUrl = UriComponentsBuilder.fromUriString(frontServerUrl + "/login/oauth2/success")
-                .queryParam("accessToken", accessToken)
-                .queryParam("refreshToken", refreshToken)
-                .build().toUriString();
+        String memberOauthId = member.getMemberOauthId();
 
+        // 권한에 따른 리다이렉트 분기
+        if ("ROLE_GUEST".equals(role)) {
+            // 신규 회원이면 -> 추가 정보 입력 페이지로 이동
+            targetUrl = UriComponentsBuilder.fromUriString(frontServerUrl + "/members/social-signup")
+                    .queryParam("accessToken", accessToken)
+                    .queryParam("refreshToken", refreshToken)
+                    .queryParam("memberOauthId", memberOauthId)
+                    .build().toUriString();
+        } else {
+            // 기존 회원이면 -> 로그인 성공 처리 (메인 페이지)
+            targetUrl = UriComponentsBuilder.fromUriString(frontServerUrl + "/login/oauth2/success")
+                    .queryParam("accessToken", accessToken)
+                    .queryParam("refreshToken", refreshToken)
+                    .build().toUriString();
+        }
         getRedirectStrategy().sendRedirect(request, response, targetUrl);
     }
 }

@@ -1,6 +1,5 @@
 package com.nhnacademy.authservice.global.config;
 
-import com.nhnacademy.authservice.auth.jwt.JWTUtil;
 import com.nhnacademy.authservice.auth.jwt.SocialLoginHandler;
 import com.nhnacademy.authservice.auth.service.CustomOAuth2UserService;
 import lombok.RequiredArgsConstructor;
@@ -14,10 +13,7 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.access.intercept.AuthorizationFilter;
 
 @Configuration
 @EnableWebSecurity
@@ -29,17 +25,12 @@ public class SecurityConfig {
     private final StringRedisTemplate redisTemplate;
 
     @Bean
-    public PasswordEncoder passwordEncoder(){
-        return new BCryptPasswordEncoder();
-    }
-
-    @Bean
-    public AuthenticationManager authenticationManager(AuthenticationConfiguration configuration) throws Exception {
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration configuration) {
         return configuration.getAuthenticationManager();
     }
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain filterChain(HttpSecurity http) {
 
         http.csrf(AbstractHttpConfigurer::disable)
                 .formLogin(AbstractHttpConfigurer::disable)
@@ -53,9 +44,9 @@ public class SecurityConfig {
 
         // OAuth2 설정
         http.oauth2Login((oauth2) -> oauth2
-                .userInfoEndpoint((userInfo) -> userInfo
-                        .userService(customOAuth2UserService))
-                .successHandler(socialLoginHandler)
+                        .userInfoEndpoint((userInfo) -> userInfo
+                                .userService(customOAuth2UserService))
+                        .successHandler(socialLoginHandler)
         );
 
         http.sessionManagement((session) -> session
