@@ -12,7 +12,6 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
-import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 
 @Configuration
@@ -49,8 +48,10 @@ public class SecurityConfig {
                         .successHandler(socialLoginHandler)
         );
 
-        http.sessionManagement((session) -> session
-                .sessionCreationPolicy(SessionCreationPolicy.STATELESS));
+        // 소셜 로그인 문제로 주석 처리
+        // OAuth2 로그인 과정에서 임시 세션 필요
+//        http.sessionManagement((session) -> session
+//                .sessionCreationPolicy(SessionCreationPolicy.STATELESS));
 
         // 모든 요청 허용
         http.authorizeHttpRequests(auth ->
