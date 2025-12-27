@@ -65,18 +65,20 @@ public class SocialLoginHandler extends SimpleUrlAuthenticationSuccessHandler {
         // 권한에 따른 리다이렉트 분기
         if ("ROLE_GUEST".equals(role)) {
             // 신규 회원이면 -> 추가 정보 입력 페이지로 이동
-            targetUrl = UriComponentsBuilder.fromUriString(frontServerUrl + "/members/social-signup")
+            targetUrl = UriComponentsBuilder.fromUriString(frontServerUrl)
+                    .path("/members/social-signup")
                     .queryParam("accessToken", accessToken)
                     .queryParam("refreshToken", refreshToken)
                     .queryParam("memberOauthId", memberOauthId)
                     .build().toUriString();
         } else {
             // 기존 회원이면 -> 로그인 성공 처리 (메인 페이지)
-            targetUrl = UriComponentsBuilder.fromUriString(frontServerUrl + "/login/oauth2/success")
+            targetUrl = UriComponentsBuilder.fromUriString(frontServerUrl)
+                    .path("/login/oauth2/success")
                     .queryParam("accessToken", accessToken)
                     .queryParam("refreshToken", refreshToken)
                     .build().toUriString();
         }
-        getRedirectStrategy().sendRedirect(request, response, targetUrl);
+        response.sendRedirect(targetUrl);
     }
 }
