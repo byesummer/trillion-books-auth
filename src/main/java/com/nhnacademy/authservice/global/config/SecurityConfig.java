@@ -43,14 +43,19 @@ public class SecurityConfig {
         http.sessionManagement((session) -> session
                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS));
 
-        http.oauth2Login((oauth2) -> oauth2
-                // 인증 요청을 쿠키에 저장하도록 설정
+        http.oauth2Login(oauth2 -> oauth2
                 .authorizationEndpoint(authorization -> authorization
                         .baseUri("/oauth2/authorization")
-                        .authorizationRequestRepository(cookieAuthorizationRequestRepository))
-                .userInfoEndpoint((userInfo) -> userInfo
-                        .userService(customOAuth2UserService))
+                        .authorizationRequestRepository(cookieAuthorizationRequestRepository)
+                )
+                .redirectionEndpoint(redirection -> redirection
+                        .baseUri("/login/oauth2/code/*")
+                )
+                .userInfoEndpoint(userInfo -> userInfo
+                        .userService(customOAuth2UserService)
+                )
                 .successHandler(socialLoginHandler)
+                .failureUrl("/login?error")
         );
 
         http.authorizeHttpRequests(auth ->
