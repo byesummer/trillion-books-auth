@@ -1,12 +1,28 @@
 package com.nhnacademy.authservice.auth.dto.oauth2;
 
+import lombok.extern.slf4j.Slf4j;
+
 import java.util.Map;
 
+@Slf4j
 public class PaycoResponse implements OAuth2Response{
     private final Map<String, Object> attribute;
 
     public PaycoResponse(Map<String, Object> allAttributes) {
+        log.info("Payco Raw Attributes: {}", allAttributes);
+
+        if (allAttributes == null || !allAttributes.containsKey("data")) {
+            log.error("Payco login failed: 'data' field is missing.");
+            this.attribute = Map.of();
+            return;
+        }
         Map<String, Object> data = (Map<String, Object>) allAttributes.get("data");
+
+        if (data == null || !data.containsKey("member")) {
+            log.error("Payco login failed: 'member' field is missing inside data.");
+            this.attribute = Map.of();
+            return;
+        }
         this.attribute = (Map<String, Object>) data.get("member");
     }
 

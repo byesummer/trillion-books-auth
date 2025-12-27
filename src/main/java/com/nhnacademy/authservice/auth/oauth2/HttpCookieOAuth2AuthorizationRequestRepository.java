@@ -3,6 +3,7 @@ package com.nhnacademy.authservice.auth.oauth2;
 import com.nhnacademy.authservice.global.util.CookieUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
 import org.springframework.security.oauth2.client.web.AuthorizationRequestRepository;
 import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequest;
 import org.springframework.stereotype.Component;
@@ -10,6 +11,7 @@ import org.springframework.util.SerializationUtils;
 import java.util.Base64;
 
 @Component
+@RequiredArgsConstructor
 public class HttpCookieOAuth2AuthorizationRequestRepository
         implements AuthorizationRequestRepository<OAuth2AuthorizationRequest> {
 
@@ -47,7 +49,7 @@ public class HttpCookieOAuth2AuthorizationRequestRepository
         CookieUtils.deleteCookie(request, response, REDIRECT_URI_PARAM_COOKIE_NAME);
     }
 
-    // 직렬화/역직렬화 메서드
+    // 직렬화/역직렬화
     private String serialize(Object object) {
         return Base64.getUrlEncoder().encodeToString(SerializationUtils.serialize(object));
     }

@@ -2,6 +2,7 @@ package com.nhnacademy.authservice.auth.jwt;
 
 import com.nhnacademy.authservice.auth.dto.oauth2.CustomOAuth2User;
 import com.nhnacademy.authservice.auth.entity.RefreshToken;
+import com.nhnacademy.authservice.auth.oauth2.HttpCookieOAuth2AuthorizationRequestRepository;
 import com.nhnacademy.authservice.auth.repository.RefreshTokenRepository;
 import com.nhnacademy.authservice.global.error.exception.MemberNotFoundException;
 import com.nhnacademy.authservice.member.entity.Member;
@@ -25,6 +26,7 @@ public class SocialLoginHandler extends SimpleUrlAuthenticationSuccessHandler {
     private final JWTUtil jwtUtil;
     private final RefreshTokenRepository refreshTokenRepository;
     private final MemberRepository memberRepository;
+    private final HttpCookieOAuth2AuthorizationRequestRepository authorizationRequestRepository;
 
     // 프론트 서버 주소
     @Value("${front.server.url:http://localhost:10402}")
@@ -36,11 +38,6 @@ public class SocialLoginHandler extends SimpleUrlAuthenticationSuccessHandler {
         // 유저 정보 추출
         CustomOAuth2User customUserDetails = (CustomOAuth2User) authentication.getPrincipal();
         String memberEmail = customUserDetails.getEmail(); // 혹은 memberId를 로드하는 로직 필요
-
-        // OAuth2User에는 DB의 memberId가 없을 수 있음.
-        // 따라서 CustomOAuth2UserService에서 memberId를 attributes에 넣어두거나,
-        // 여기서 이메일로 DB를 조회해서 memberId를 가져와야 함.
-        // (여기서는 CustomOAuth2UserService에서 Role을 결정했던 로직을 활용)
 
         Collection<? extends GrantedAuthority> authorities = authentication.getAuthorities();
         Iterator<? extends GrantedAuthority> iterator = authorities.iterator();
@@ -79,6 +76,13 @@ public class SocialLoginHandler extends SimpleUrlAuthenticationSuccessHandler {
                     .queryParam("refreshToken", refreshToken)
                     .build().toUriString();
         }
+        clearAuthenticationAttributes(request, response);
+
         response.sendRedirect(targetUrl);
+    }
+
+    protected void clearAuthenticationAttributes(HttpServletRequest request, HttpServletResponse response) {
+        super.clearAuthenticationAttributes(request);
+        authorizationRequestRepository.removeAuthorizationRequestCookies(request, response);
     }
 }
