@@ -1,11 +1,12 @@
 package com.nhnacademy.authservice.auth.controller;
 
+import com.nhnacademy.authservice.auth.controller.docs.AuthControllerDocs;
 import com.nhnacademy.authservice.auth.dto.LoginRequest;
 import com.nhnacademy.authservice.auth.dto.TokenResponse;
 import com.nhnacademy.authservice.auth.service.AuthService;
 import com.nhnacademy.authservice.global.error.ErrorResponse;
-import com.nhnacademy.authservice.member.entity.MemberState;
 import com.nhnacademy.authservice.global.error.exception.MemberStateConflictException;
+import com.nhnacademy.authservice.member.entity.MemberState;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,10 +22,11 @@ import java.util.Map;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/auth")
-public class AuthController {
+public class AuthController implements AuthControllerDocs {
 
     private final AuthService authService;
 
+    @Override
     @PostMapping("/validate")
     public ResponseEntity<Void> validateToken(@RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader) {
         try {
