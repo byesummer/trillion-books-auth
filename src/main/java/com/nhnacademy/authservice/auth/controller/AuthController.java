@@ -36,7 +36,6 @@ public class AuthController {
                     .header("X-Member-Role", memberInfo.get("role"))
                     .build();
         } catch (Exception e) {
-            log.warn("Token validation failed: {}", e.getMessage());
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
     }
@@ -90,7 +89,6 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(ErrorResponse.of("BAD_CREDENTIALS", 401, "아이디 또는 비밀번호가 일치하지 않습니다."));
         }
-        log.error("Login Error", ex);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ErrorResponse.of("INTERNAL_ERROR", 500, "로그인 중 서버 오류가 발생했습니다."));
     }
