@@ -6,6 +6,7 @@ import com.nhnacademy.authservice.auth.oauth2.HttpCookieOAuth2AuthorizationReque
 import com.nhnacademy.authservice.auth.repository.RefreshTokenRepository;
 import com.nhnacademy.authservice.global.error.exception.MemberNotFoundException;
 import com.nhnacademy.authservice.member.entity.Member;
+import com.nhnacademy.authservice.member.entity.MemberState;
 import com.nhnacademy.authservice.member.repository.MemberRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -37,7 +38,7 @@ public class SocialLoginHandler extends SimpleUrlAuthenticationSuccessHandler {
 
         // 유저 정보 추출
         CustomOAuth2User customUserDetails = (CustomOAuth2User) authentication.getPrincipal();
-        String memberEmail = customUserDetails.getEmail(); // 혹은 memberId를 로드하는 로직 필요
+        String memberEmail = customUserDetails.getEmail();
 
         Collection<? extends GrantedAuthority> authorities = authentication.getAuthorities();
         Iterator<? extends GrantedAuthority> iterator = authorities.iterator();
@@ -46,6 +47,27 @@ public class SocialLoginHandler extends SimpleUrlAuthenticationSuccessHandler {
 
         Member member = memberRepository.findByMemberEmail(memberEmail)
                 .orElseThrow(() -> new MemberNotFoundException("회원 정보를 찾을 수 없습니다."));
+
+        if (member.getMemberState() == MemberState.DORMANT) {
+            String targetUrl = UriComponentsBuilder.fromUriString(frontServerUrl)
+                    .path("/members/dormant")
+                    .build().toUriString();
+
+            clearAuthenticationAttributes(request, response);
+            response.sendRedirect(targetUrl);
+            return;
+        }
+
+        if (member.getMemberState() == MemberState.WITHDRAWAL) {
+            String targetUrl = UriComponentsBuilder.fromUriString(frontServerUrl)
+                    .path("/login")
+                    .queryParam("error", "withdrawal")
+                    .build().toUriString();
+
+            clearAuthenticationAttributes(request, response);
+            response.sendRedirect(targetUrl);
+            return;
+        }
 
         Long memberId = member.getMemberId();
 
