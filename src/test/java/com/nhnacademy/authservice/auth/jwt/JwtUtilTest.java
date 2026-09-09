@@ -13,14 +13,14 @@ import org.springframework.test.context.junit.jupiter.SpringExtension;
 @ExtendWith(SpringExtension.class)
 @EnableConfigurationProperties(value = {TestJwtProperties.class})
 @TestPropertySource("classpath:application-jwt.properties")
-class JWTUtilTest {
+class JwtUtilTest {
     @Autowired
     private TestJwtProperties jwtProperities;
 
-    private JWTUtil jwtUtil;
+    private JwtUtil jwtUtil;
     @BeforeEach
     void setUp() {
-        jwtUtil=new JWTUtil(jwtProperities.secret());
+        jwtUtil=new JwtUtil(jwtProperities.secret());
     }
     @Test
     @DisplayName("유효기간이 지난 토큰은 예외를 반환한다.")

@@ -3,6 +3,7 @@ package com.nhnacademy.authservice.auth.jwt;
 import com.nhnacademy.authservice.global.error.exception.InvalidRefreshTokenException;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.JwtBuilder;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
@@ -13,11 +14,11 @@ import java.nio.charset.StandardCharsets;
 import java.util.Date;
 
 @Component
-public class JWTUtil {
+public class JwtUtil {
 
     private final SecretKey secretKey;
 
-    public JWTUtil(@Value("${spring.jwt.secret}") String secret) {
+    public JwtUtil(@Value("${spring.jwt.secret}") String secret) {
         this.secretKey = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
     }
 
@@ -35,6 +36,10 @@ public class JWTUtil {
 
     public String getRole(String token) {
         return getClaims(token).get("role", String.class);
+    }
+
+    public String getJti(String token){
+        return getClaims(token).getId();
     }
 
     private TokenKinds getCategory(String token) {
@@ -56,19 +61,26 @@ public class JWTUtil {
         return getClaims(token).getExpiration().getTime();
     }
 
-    public String createJwt(Long memberId, TokenKinds category, String role) {
+    public String createJwt(Long memberId, TokenKinds category, String role){
+        return createJwt(memberId, category, role, null);
+    }
+
+    public String createJwt(Long memberId, TokenKinds category, String role, String jti) {
         Date now = new Date();
         Date past = new Date(now.getTime() - 60000);
         Date validity = new Date(now.getTime() + category.getExpiredTime());
 
-        return Jwts.builder()
+        JwtBuilder jwt = Jwts.builder()
                 .subject(memberId.toString())
                 .claim("category",category)
                 .claim("role", role)
                 .issuedAt(past)
-                .expiration(validity)
-                .signWith(secretKey)
-                .compact();
+                .expiration(validity);
+        if(jti != null){
+            jwt.id(jti);
+        }
+
+        return jwt.signWith(secretKey).compact();
     }
     public void validateAccessToken(String token) {
         if (isExpired(token)) {
