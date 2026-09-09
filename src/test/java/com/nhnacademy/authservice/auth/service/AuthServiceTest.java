@@ -4,24 +4,20 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.nhnacademy.authservice.auth.dto.CustomUserDetails;
 import com.nhnacademy.authservice.auth.dto.LoginRequest;
 import com.nhnacademy.authservice.auth.dto.TokenResponse;
-import com.nhnacademy.authservice.auth.entity.RefreshToken;
-import com.nhnacademy.authservice.auth.jwt.JWTUtil;
-import com.nhnacademy.authservice.auth.jwt.TokenKinds;
+import com.nhnacademy.authservice.auth.jwt.JwtUtil;
+import com.nhnacademy.authservice.auth.jwt.TokenIssuer;
 import com.nhnacademy.authservice.auth.repository.RefreshTokenRepository;
 import com.nhnacademy.authservice.member.entity.Member;
-import com.nhnacademy.authservice.member.repository.MemberRepository;
-import java.util.Collections;
+import com.nhnacademy.authservice.member.entity.MemberRole;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -34,17 +30,16 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
 @ExtendWith(MockitoExtension.class)
 class AuthServiceTest {
 
     @Mock private AuthenticationManager authenticationManager;
-    @Mock private JWTUtil jwtUtil;
+    @Mock private JwtUtil jwtUtil;
     @Mock private RefreshTokenRepository refreshTokenRepository;
-    @Mock private MemberRepository memberRepository;
     @Mock private StringRedisTemplate redisTemplate;
     @Mock private TokenParser tokenParser;
+    @Mock private TokenIssuer tokenIssuer;
     @Mock private ValueOperations<String, String> valueOperations;
 
     @InjectMocks
@@ -59,16 +54,16 @@ class AuthServiceTest {
             // given
             LoginRequest request = new LoginRequest("test@test.com", "password");
             Member member = mock(Member.class);
+            CustomUserDetails principal = mock(CustomUserDetails.class);
             Authentication auth = mock(Authentication.class);
 
             when(authenticationManager.authenticate(any())).thenReturn(auth);
-            when(memberRepository.findByMemberEmail(anyString())).thenReturn(Optional.of(member));
+            when(auth.getPrincipal()).thenReturn(principal);
+            when(principal.getMember()).thenReturn(member);
             when(member.getMemberId()).thenReturn(1L);
-            doReturn(Collections.singleton(new SimpleGrantedAuthority("ROLE_USER")))
-                    .when(auth).getAuthorities();
-
-            when(jwtUtil.createJwt(eq(1L), eq(TokenKinds.ACCESS_TOKEN), anyString())).thenReturn("access-token");
-            when(jwtUtil.createJwt(eq(1L), eq(TokenKinds.REFRESH_TOKEN), anyString())).thenReturn("refresh-token");
+            when(member.getMemberRole()).thenReturn(MemberRole.MEMBER);
+            when(tokenIssuer.issue(1L, "MEMBER"))
+                    .thenReturn(new TokenResponse("access-token", "refresh-token"));
 
             // when
             TokenResponse response = authService.login(request);
@@ -76,7 +71,7 @@ class AuthServiceTest {
             // then
             assertThat(response.accessToken()).isEqualTo("access-token");
             assertThat(response.refreshToken()).isEqualTo("refresh-token");
-            verify(refreshTokenRepository).save(any(RefreshToken.class));
+            verify(tokenIssuer).issue(1L, "MEMBER");
             verify(member).setMemberLatestLoginAt(any());
         }
     }

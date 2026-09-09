@@ -3,27 +3,25 @@ package com.nhnacademy.authservice.auth.service;
 import com.nhnacademy.authservice.auth.dto.LoginRequest;
 import com.nhnacademy.authservice.auth.dto.TokenResponse;
 import com.nhnacademy.authservice.auth.entity.RefreshToken;
-import com.nhnacademy.authservice.auth.jwt.JWTUtil;
-import com.nhnacademy.authservice.auth.jwt.TokenKinds;
+import com.nhnacademy.authservice.auth.jwt.JwtUtil;
+import com.nhnacademy.authservice.auth.jwt.TokenIssuer;
 import com.nhnacademy.authservice.auth.repository.RefreshTokenRepository;
 import com.nhnacademy.authservice.global.error.exception.InvalidRefreshTokenException;
 import com.nhnacademy.authservice.member.entity.Member;
-import com.nhnacademy.authservice.member.repository.MemberRepository;
-import java.time.LocalDate;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.concurrent.TimeUnit;
+import io.jsonwebtoken.JwtException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.jspecify.annotations.NonNull;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDate;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Service
@@ -32,21 +30,19 @@ import org.springframework.transaction.annotation.Transactional;
 public class AuthService {
 
     private final AuthenticationManager authenticationManager;
-    private final JWTUtil jwtUtil;
+    private final JwtUtil jwtUtil;
     private final RefreshTokenRepository refreshTokenRepository;
-    private final MemberRepository memberRepository;
     private final StringRedisTemplate redisTemplate;
     private final TokenParser tokenParser;
+    private final TokenIssuer tokenIssuer;
 
     public Map<String, String> validateToken(String authHeader) {
         String token = tokenParser.getToken(authHeader);
         jwtUtil.validateAccessToken(token);
 
-        // 블랙리스트 확인
         if (Boolean.TRUE.equals(redisTemplate.hasKey("BL:" + token))) {
             throw new IllegalArgumentException("Blacklisted token");
         }
-        // JWTUtil 내부에서 ExpiredJwtException 발생 시 Controller가 잡음
         Long memberId = jwtUtil.getMemberId(token);
         String role = jwtUtil.getRole(token);
 
@@ -55,6 +51,7 @@ public class AuthService {
         result.put("role", role);
         return result;
     }
+
     public TokenResponse login(LoginRequest request) {
         Authentication authentication = authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(request.memberEmail(), request.memberPassword()));
 
@@ -77,10 +74,18 @@ public class AuthService {
     public TokenResponse reissue(String refreshToken) {
         jwtUtil.validateRefreshToken(refreshToken);
 
-        RefreshToken storedToken = refreshTokenRepository.findById(refreshToken)
+        Long memberId = jwtUtil.getMemberId(refreshToken);
+        RefreshToken storedToken = refreshTokenRepository.findById(memberId)
                 .orElseThrow(() -> new InvalidRefreshTokenException("Invalid refresh token (Not found in Redis)"));
 
-        return generateTokens(storedToken.getMemberId(), storedToken.getRole());
+        String presentedJti = jwtUtil.getJti(refreshToken);
+        if (!storedToken.getJti().equals(presentedJti)) {
+            refreshTokenRepository.deleteById(memberId);
+            log.warn("Refresh token reuse detected. memberId={}, session invalidated", memberId);
+            throw new InvalidRefreshTokenException("Refresh token reuse detected");
+        }
+
+        return tokenIssuer.issue(memberId, storedToken.getRole());
     }
 
     public void logout(String accessToken) {
