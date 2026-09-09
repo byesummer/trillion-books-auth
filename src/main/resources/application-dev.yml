@@ -2,7 +2,7 @@ spring:
   application:
     name: auth-service
 
-  # Redis ??
+  # Redis
   data:
     redis:
       host: localhost
@@ -10,14 +10,14 @@ spring:
 
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://DB_HOST:13306/trillion_db
-    username: trillion_db
+    url: jdbc:mysql://${DB_HOST}:${DB_PORT:3306}/${DB_NAME}
+    username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
 
   jpa:
     database-platform: org.hibernate.dialect.MySQLDialect
     hibernate:
-      ddl-auto: validate # ?? ??? ???? validate, ?? ??? update ?? create
+      ddl-auto: validate
     properties:
       hibernate:
         format_sql: true
@@ -52,17 +52,17 @@ spring:
 
   # JWT
   jwt:
-    secret: REDACTED_USE_ENV_VAR
+    secret: ${JWT_SECRET}
+
+  # 로컬 단독 실행: Config Server 미사용
+  cloud:
+    config:
+      enabled: false
 
 server:
   port: 10401
 
-
-# Config, Eureka disabled
-cloud:
-  config:
-    enabled: false
-
+# 로컬 단독 실행: Eureka 등록 안 함
 eureka:
   client:
     enabled: false

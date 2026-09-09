@@ -55,7 +55,6 @@ public class AuthService {
         result.put("role", role);
         return result;
     }
-    //Todo 이거 스프링시큐리티라 가능사용만하면 될 것 같은데?
     public TokenResponse login(LoginRequest request) {
         Authentication authentication = authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(request.memberEmail(), request.memberPassword()));
 
@@ -106,7 +105,6 @@ public class AuthService {
             refreshTokenRepository.deleteById(refreshToken);
         }
     }
-    //FixMe 이거 트랙잭션 의도대로 안됨. 이건 스스로 공부해보기. 스프링 이해하기 좋음.
     private TokenResponse generateTokens(Long memberId, String role) {
         String accessToken = jwtUtil.createJwt(memberId, TokenKinds.ACCESS_TOKEN, role);
         String refreshToken = jwtUtil.createJwt(memberId, TokenKinds.REFRESH_TOKEN, role);

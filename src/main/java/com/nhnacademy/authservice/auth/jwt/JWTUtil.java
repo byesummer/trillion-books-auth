@@ -5,11 +5,12 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
-import java.nio.charset.StandardCharsets;
-import java.util.Date;
-import javax.crypto.SecretKey;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+
+import javax.crypto.SecretKey;
+import java.nio.charset.StandardCharsets;
+import java.util.Date;
 
 @Component
 public class JWTUtil {
@@ -69,7 +70,6 @@ public class JWTUtil {
                 .signWith(secretKey)
                 .compact();
     }
-    //3개이상 다형성 풀어보셈. 제안
     public void validateAccessToken(String token) {
         if (isExpired(token)) {
             throw new IllegalArgumentException("Expired token");

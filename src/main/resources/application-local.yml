@@ -1,0 +1,55 @@
+spring:
+  application:
+    name: auth-service
+
+  # Config Server 미사용
+  cloud:
+    config:
+      enabled: false
+
+  # H2 인메모리 (MySQL 호환 모드) — 스키마 자동 생성
+  datasource:
+    url: jdbc:h2:mem:authdb;MODE=MySQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        format_sql: true
+    show-sql: true
+
+  h2:
+    console:
+      enabled: true   # http://localhost:10401/h2-console  (JDBC URL: jdbc:h2:mem:authdb)
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+  # 로컬 기동용 더미 — 실제 소셜 로그인은 동작 안 함
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-name: google
+            client-id: local-dummy
+            client-secret: local-dummy
+            redirect-uri: http://localhost:10401/login/oauth2/code/google
+            scope: profile,email
+
+  jwt:
+    secret: local-dev-secret-please-change-0123456789abcdef
+
+server:
+  port: 10401
+
+# Eureka 등록 안 함
+eureka:
+  client:
+    enabled: false
