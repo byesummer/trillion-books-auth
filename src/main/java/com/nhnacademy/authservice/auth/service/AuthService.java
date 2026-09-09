@@ -1,5 +1,6 @@
 package com.nhnacademy.authservice.auth.service;
 
+import com.nhnacademy.authservice.auth.dto.CustomUserDetails;
 import com.nhnacademy.authservice.auth.dto.LoginRequest;
 import com.nhnacademy.authservice.auth.dto.TokenResponse;
 import com.nhnacademy.authservice.auth.entity.RefreshToken;
@@ -53,22 +54,13 @@ public class AuthService {
     }
 
     public TokenResponse login(LoginRequest request) {
-        Authentication authentication = authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(request.memberEmail(), request.memberPassword()));
+        Authentication authentication = authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(request.memberEmail(), request.memberPassword()));
 
-        Member member = memberRepository.findByMemberEmail(request.memberEmail())
-                .orElseThrow(() -> new UsernameNotFoundException("Member not found"));
-
-        member.validateActive();
+        Member member = ((CustomUserDetails) authentication.getPrincipal()).getMember();
         member.setMemberLatestLoginAt(LocalDate.now());
 
-        String role = getRole(authentication);
-        return generateTokens(member.getMemberId(), role);
-    }
-
-    private @NonNull String getRole(Authentication authentication) {
-        String role = authentication.getAuthorities().iterator().next().getAuthority();
-        if(role.startsWith("ROLE_")) role = role.substring(5);
-        return role;
+        return tokenIssuer.issue(member.getMemberId(), member.getMemberRole().name());
     }
 
     public TokenResponse reissue(String refreshToken) {
@@ -88,34 +80,22 @@ public class AuthService {
         return tokenIssuer.issue(memberId, storedToken.getRole());
     }
 
-    public void logout(String accessToken) {
-        String token = tokenParser.getToken(accessToken);
-         // Access Token 블랙리스트 등록
+    public void logout(String authHeader) {
+        String token = tokenParser.getToken(authHeader);
+        Long memberId = jwtUtil.getMemberId(token);
         try {
-                long expiration = jwtUtil.getExpiration(token);
-                long now = new Date().getTime();
-                long remainTime = expiration - now;
-                if (remainTime > 0) {
-                    redisTemplate.opsForValue()
-                            .set("BL:" + token, "logout", remainTime, TimeUnit.MILLISECONDS);
-                }
-        } catch (Exception e) {
-                log.warn("Logout failed (Invalid token): {}", e.getMessage());
+            long remainTime = jwtUtil.getExpiration(token) - System.currentTimeMillis();
+            if (remainTime > 0) {
+                redisTemplate.opsForValue().set("BL:" + token, "logout", remainTime, TimeUnit.MILLISECONDS);
+            }
+        } catch (JwtException | IllegalArgumentException e) {
+            log.warn("Logout with invalid access token (blacklist skipped): {}", e.getMessage());
         }
+        refreshTokenRepository.deleteById(memberId);
     }
 
-    // 로그아웃 처리 (Refresh Token 삭제)
-    public void withdrawMember(String refreshToken) {
-        if (refreshToken != null && refreshTokenRepository.existsById(refreshToken)) {
-            refreshTokenRepository.deleteById(refreshToken);
-        }
-    }
-    private TokenResponse generateTokens(Long memberId, String role) {
-        String accessToken = jwtUtil.createJwt(memberId, TokenKinds.ACCESS_TOKEN, role);
-        String refreshToken = jwtUtil.createJwt(memberId, TokenKinds.REFRESH_TOKEN, role);
-
-        refreshTokenRepository.save(new RefreshToken(refreshToken, memberId, role));
-
-        return new TokenResponse(accessToken, refreshToken);
+    public void withdrawMember(String authHeader) {
+        String token = tokenParser.getToken(authHeader);
+        refreshTokenRepository.deleteById(jwtUtil.getMemberId(token));
     }
 }

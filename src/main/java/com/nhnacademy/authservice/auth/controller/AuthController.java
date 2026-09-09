@@ -66,12 +66,8 @@ public class AuthController implements AuthControllerDocs {
 
     // 회원 탈퇴
     @DeleteMapping("/withdraw")
-    public ResponseEntity<Void> withdraw(
-            @RequestHeader("X-Member-Id") Long memberId,
-            @RequestHeader(value = "Refresh-Token", required = false) String refreshToken
-    ) {
-        authService.withdrawMember(refreshToken);
-        log.info("회원 탈퇴 완료: MemberEmail {}", memberId);
+    public ResponseEntity<Void> withdraw(@RequestHeader(HttpHeaders.AUTHORIZATION) String accessToken) {
+        authService.withdrawMember(accessToken);
         return ResponseEntity.ok().build();
     }
 

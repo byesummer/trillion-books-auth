@@ -66,9 +66,7 @@ public interface AuthControllerDocs {
             @ApiResponse(responseCode = "200", description = "회원 탈퇴 성공")
     })
     ResponseEntity<Void> withdraw(
-            @Parameter(description = "Member ID (Header: X-Member-Id)", required = true)
-            Long memberId,
-            @Parameter(description = "Refresh Token (Header: Refresh-Token)", required = false)
-            String refreshToken
+            @Parameter(description = "Bearer Access Token", required = true)
+            String accessToken
     );
 }
