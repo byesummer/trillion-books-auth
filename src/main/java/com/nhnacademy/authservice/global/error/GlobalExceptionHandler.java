@@ -5,6 +5,7 @@ import com.nhnacademy.authservice.global.error.exception.MemberNotFoundException
 import com.nhnacademy.authservice.global.error.exception.MemberStateConflictException;
 import com.nhnacademy.authservice.global.error.exception.UserAlreadyExistsException;
 import com.nhnacademy.authservice.global.error.exception.*;
+import io.jsonwebtoken.JwtException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -85,6 +86,17 @@ public class GlobalExceptionHandler {
         log.warn("리프레시 토큰 유효성 검사 실패: {}", e.getMessage());
         ErrorResponse response = ErrorResponse.of(
                 "Invalid Refresh Token",
+                HttpStatus.UNAUTHORIZED.value(),
+                e.getMessage()
+        );
+        return new ResponseEntity<>(response, HttpStatus.UNAUTHORIZED);
+    }
+
+    @ExceptionHandler(JwtException.class)
+    public ResponseEntity<ErrorResponse> handleJwtException(JwtException e) {
+        log.warn("토큰 검증 실패: {}", e.getMessage());
+        ErrorResponse response = ErrorResponse.of(
+                "Invalid Token",
                 HttpStatus.UNAUTHORIZED.value(),
                 e.getMessage()
         );
