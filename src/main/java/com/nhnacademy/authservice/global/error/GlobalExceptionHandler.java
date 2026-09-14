@@ -139,6 +139,19 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(response, HttpStatus.FORBIDDEN);
     }
 
+    @ExceptionHandler(LockAcquisitionException.class)
+    public ResponseEntity<ErrorResponse> handleLockAcquisition(LockAcquisitionException e) {
+        log.warn("락 획득 실패: {}", e.getMessage());
+        ErrorResponse response = ErrorResponse.of(
+                "Lock Acquisition Failed",
+                HttpStatus.SERVICE_UNAVAILABLE.value(),
+                e.getMessage()
+        );
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .header("Retry-After", "1")
+                .body(response);
+    }
+
     // 500 Internal Server Error (그 외 모든 예외)
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGlobalException(Exception e) {

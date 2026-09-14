@@ -8,10 +8,13 @@ import com.nhnacademy.authservice.auth.jwt.JwtUtil;
 import com.nhnacademy.authservice.auth.jwt.TokenIssuer;
 import com.nhnacademy.authservice.auth.repository.RefreshTokenRepository;
 import com.nhnacademy.authservice.global.error.exception.InvalidRefreshTokenException;
+import com.nhnacademy.authservice.global.error.exception.LockAcquisitionException;
 import com.nhnacademy.authservice.member.entity.Member;
 import io.jsonwebtoken.JwtException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -36,6 +39,7 @@ public class AuthService {
     private final StringRedisTemplate redisTemplate;
     private final TokenParser tokenParser;
     private final TokenIssuer tokenIssuer;
+    private final RedissonClient redissonClient;
 
     public Map<String, String> validateToken(String authHeader) {
         String token = tokenParser.getToken(authHeader);
@@ -67,17 +71,36 @@ public class AuthService {
         jwtUtil.validateRefreshToken(refreshToken);
 
         Long memberId = jwtUtil.getMemberId(refreshToken);
-        RefreshToken storedToken = refreshTokenRepository.findById(memberId)
-                .orElseThrow(() -> new InvalidRefreshTokenException("Invalid refresh token (Not found in Redis)"));
 
-        String presentedJti = jwtUtil.getJti(refreshToken);
-        if (!storedToken.getJti().equals(presentedJti)) {
-            refreshTokenRepository.deleteById(memberId);
-            log.warn("Refresh token reuse detected. memberId={}, session invalidated", memberId);
-            throw new InvalidRefreshTokenException("Refresh token reuse detected");
+        RLock lock = redissonClient.getLock("reissue:lock:" + memberId);
+        boolean acquired;
+        try {
+            acquired = lock.tryLock(3, 5, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new LockAcquisitionException("Lock acquisition interrupted");
+        }
+        if (!acquired) {
+            throw new LockAcquisitionException("Could not acquire reissue lock");
         }
 
-        return tokenIssuer.issue(memberId, storedToken.getRole());
+        try {
+            RefreshToken storedToken = refreshTokenRepository.findById(memberId)
+                    .orElseThrow(() -> new InvalidRefreshTokenException("Invalid refresh token (Not found in Redis)"));
+
+            String presentedJti = jwtUtil.getJti(refreshToken);
+            if (!storedToken.getJti().equals(presentedJti)) {
+                refreshTokenRepository.deleteById(memberId);
+                log.warn("Refresh token reuse detected. memberId={}, session invalidated", memberId);
+                throw new InvalidRefreshTokenException("Refresh token reuse detected");
+            }
+
+            return tokenIssuer.issue(memberId, storedToken.getRole());
+        }finally {
+            if(lock.isHeldByCurrentThread()){
+                lock.unlock();
+            }
+        }
     }
 
     public void logout(String authHeader) {
