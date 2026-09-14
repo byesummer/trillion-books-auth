@@ -7,10 +7,12 @@ import com.nhnacademy.authservice.auth.entity.RefreshToken;
 import com.nhnacademy.authservice.auth.jwt.JwtUtil;
 import com.nhnacademy.authservice.auth.jwt.TokenIssuer;
 import com.nhnacademy.authservice.auth.repository.RefreshTokenRepository;
-import com.nhnacademy.authservice.global.error.exception.InvalidRefreshTokenException;
 import com.nhnacademy.authservice.global.error.exception.LockAcquisitionException;
+import com.nhnacademy.authservice.global.error.exception.RefreshTokenNotFoundException;
+import com.nhnacademy.authservice.global.error.exception.RefreshTokenReusedException;
+import com.nhnacademy.authservice.global.error.exception.TokenBlacklistedException;
+import com.nhnacademy.authservice.global.error.exception.TokenExpiredException;
 import com.nhnacademy.authservice.member.entity.Member;
-import io.jsonwebtoken.JwtException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RLock;
@@ -46,7 +48,7 @@ public class AuthService {
         jwtUtil.validateAccessToken(token);
 
         if (Boolean.TRUE.equals(redisTemplate.hasKey("BL:" + token))) {
-            throw new IllegalArgumentException("Blacklisted token");
+            throw new TokenBlacklistedException();
         }
         Long memberId = jwtUtil.getMemberId(token);
         String role = jwtUtil.getRole(token);
@@ -86,18 +88,18 @@ public class AuthService {
 
         try {
             RefreshToken storedToken = refreshTokenRepository.findById(memberId)
-                    .orElseThrow(() -> new InvalidRefreshTokenException("Invalid refresh token (Not found in Redis)"));
+                    .orElseThrow(RefreshTokenNotFoundException::new);
 
             String presentedJti = jwtUtil.getJti(refreshToken);
             if (!storedToken.getJti().equals(presentedJti)) {
                 refreshTokenRepository.deleteById(memberId);
                 log.warn("Refresh token reuse detected. memberId={}, session invalidated", memberId);
-                throw new InvalidRefreshTokenException("Refresh token reuse detected");
+                throw new RefreshTokenReusedException();
             }
 
             return tokenIssuer.issue(memberId, storedToken.getRole());
-        }finally {
-            if(lock.isHeldByCurrentThread()){
+        } finally {
+            if (lock.isHeldByCurrentThread()) {
                 lock.unlock();
             }
         }
@@ -105,14 +107,21 @@ public class AuthService {
 
     public void logout(String authHeader) {
         String token = tokenParser.getToken(authHeader);
-        Long memberId = jwtUtil.getMemberId(token);
+        Long memberId;
         try {
-            long remainTime = jwtUtil.getExpiration(token) - System.currentTimeMillis();
-            if (remainTime > 0) {
-                redisTemplate.opsForValue().set("BL:" + token, "logout", remainTime, TimeUnit.MILLISECONDS);
-            }
-        } catch (JwtException | IllegalArgumentException e) {
-            log.warn("Logout with invalid access token (blacklist skipped): {}", e.getMessage());
+            memberId = jwtUtil.getMemberId(token);
+        } catch (TokenExpiredException e) {
+            // 서명은 유효했지만 이미 만료된 토큰 — 블랙리스트에 올릴 필요는 없고(어차피 무효),
+            // claims에서 memberId만 꺼내 RT 세션은 정리한다.
+            memberId = Long.valueOf(e.getClaims().getSubject());
+            log.warn("Logout with expired access token (blacklist skipped, session still cleared): memberId={}", memberId);
+            refreshTokenRepository.deleteById(memberId);
+            return;
+        }
+
+        long remainTime = jwtUtil.getExpiration(token) - System.currentTimeMillis();
+        if (remainTime > 0) {
+            redisTemplate.opsForValue().set("BL:" + token, "logout", remainTime, TimeUnit.MILLISECONDS);
         }
         refreshTokenRepository.deleteById(memberId);
     }

@@ -1,9 +1,11 @@
 package com.nhnacademy.authservice.auth.jwt;
 
-import com.nhnacademy.authservice.global.error.exception.InvalidRefreshTokenException;
+import com.nhnacademy.authservice.global.error.exception.TokenExpiredException;
+import com.nhnacademy.authservice.global.error.exception.TokenInvalidException;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtBuilder;
+import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
@@ -23,11 +25,17 @@ public class JwtUtil {
     }
 
     private Claims getClaims(String token) {
-        return Jwts.parser()
-                .verifyWith(secretKey)
-                .build()
-                .parseSignedClaims(token)
-                .getPayload();
+        try {
+            return Jwts.parser()
+                    .verifyWith(secretKey)
+                    .build()
+                    .parseSignedClaims(token)
+                    .getPayload();
+        } catch (ExpiredJwtException e) {
+            throw new TokenExpiredException(e.getClaims());
+        } catch (JwtException | IllegalArgumentException e) {
+            throw new TokenInvalidException();
+        }
     }
 
     public Long getMemberId(String token) {
@@ -43,16 +51,10 @@ public class JwtUtil {
     }
 
     private TokenKinds getCategory(String token) {
-        return TokenKinds.valueOf(getClaims(token).get("category", String.class));
-    }
-
-    // 토큰 만료 확인
-    private Boolean isExpired(String token) {
         try {
-            getClaims(token);
-            return false;
-        } catch (ExpiredJwtException e) {
-            return true;
+            return TokenKinds.valueOf(getClaims(token).get("category", String.class));
+        } catch (IllegalArgumentException e) {
+            throw new TokenInvalidException();
         }
     }
 
@@ -82,24 +84,20 @@ public class JwtUtil {
 
         return jwt.signWith(secretKey).compact();
     }
+
     public void validateAccessToken(String token) {
-        if (isExpired(token)) {
-            throw new IllegalArgumentException("Expired token");
-        }
-        if (TokenKinds.ACCESS_TOKEN!= getCategory(token)) {
-            throw new InvalidRefreshTokenException("Invalid token category");
+        // 만료·서명 오류는 getClaims(→getCategory)가 이미 TokenExpiredException/TokenInvalidException으로 던짐
+        if (TokenKinds.ACCESS_TOKEN != getCategory(token)) {
+            throw new TokenInvalidException();
         }
     }
+
     public void validateRefreshToken(String token) {
         if (token == null) {
-            throw new InvalidRefreshTokenException("Refresh token is null");
+            throw new TokenInvalidException();
         }
-        if(isExpired(token)) {
-            throw new InvalidRefreshTokenException("Refresh token expired");
-        }
-
-        if (TokenKinds.REFRESH_TOKEN!= getCategory(token)) {
-            throw new InvalidRefreshTokenException("Invalid token category");
+        if (TokenKinds.REFRESH_TOKEN != getCategory(token)) {
+            throw new TokenInvalidException();
         }
     }
 }

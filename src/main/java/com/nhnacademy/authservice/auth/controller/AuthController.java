@@ -29,17 +29,14 @@ public class AuthController implements AuthControllerDocs {
     @Override
     @PostMapping("/validate")
     public ResponseEntity<Void> validateToken(@RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader) {
-        try {
-            // AuthService에서 검증 수행 및 정보 추출
-            Map<String, String> memberInfo = authService.validateToken(authorizationHeader);
+        // AuthException이 상태 코드와 X-Auth-Error 헤더(만료/위조/블랙리스트 구분)를 붙여줌.
+        // 게이트웨이는 상태 코드만 봄
+        Map<String, String> memberInfo = authService.validateToken(authorizationHeader);
 
-            return ResponseEntity.ok()
-                    .header("X-Member-Id", memberInfo.get("memberId"))
-                    .header("X-Member-Role", memberInfo.get("role"))
-                    .build();
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        }
+        return ResponseEntity.ok()
+                .header("X-Member-Id", memberInfo.get("memberId"))
+                .header("X-Member-Role", memberInfo.get("role"))
+                .build();
     }
 
     @PostMapping("/login")

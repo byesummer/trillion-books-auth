@@ -37,8 +37,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
     private final MemberRepository memberRepository;
     private final PasswordEncoder passwordEncoder;
-
-    private final RestTemplate restTemplate = new RestTemplate();
+    private final RestTemplate restTemplate;
 
     @Override
     public OAuth2User loadUser(OAuth2UserRequest userRequest) throws OAuth2AuthenticationException {
@@ -78,6 +77,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
             return new CustomOAuth2User(oAuth2Response, "ROLE_" + existMember.get().getMemberRole().name());
         } else {
             // 신규 회원이면 회원가입 처리 (GUEST)
+            // side effect: 조회 성격의 loadUser 안에서 저장까지 수행 — SuccessHandler가 Member를 곧바로 조회할 수 있어야 해서 여기 둠 (차기 과제: 흐름 재설계, G4)
             Member newMember = Member.builder()
                     .memberEmail(memberEmail)
                     .memberPassword(passwordEncoder.encode(UUID.randomUUID().toString()))
