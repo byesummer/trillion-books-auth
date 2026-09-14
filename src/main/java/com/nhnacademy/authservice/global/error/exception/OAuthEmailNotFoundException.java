@@ -1,7 +1,9 @@
 package com.nhnacademy.authservice.global.error.exception;
 
-public class OAuthEmailNotFoundException extends RuntimeException {
+import com.nhnacademy.authservice.global.error.ErrorCode;
+
+public class OAuthEmailNotFoundException extends AuthException {
     public OAuthEmailNotFoundException(String message) {
-        super(message);
+        super(ErrorCode.OAUTH_EMAIL_NOT_FOUND, message);
     }
 }
