@@ -1,5 +1,7 @@
 package com.nhnacademy.authservice.auth.jwt;
 
+import com.nhnacademy.authservice.global.error.exception.TokenExpiredException;
+import com.nhnacademy.authservice.global.error.exception.TokenInvalidException;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -67,4 +69,27 @@ class JwtUtilTest {
         Assertions.assertThatCode(()->jwtUtil.validateRefreshToken(jwtProperities.rightRefreshToken())).doesNotThrowAnyException();
     }
 
+    @Test
+    @DisplayName("만료된 액세스 토큰은 TokenExpiredException을 던진다.")
+    void 만료_토큰은_TokenExpiredException() {
+        Assertions.assertThatThrownBy(() -> jwtUtil.validateAccessToken(jwtProperities.timeOutAccessToken()))
+                .isInstanceOf(TokenExpiredException.class);
+    }
+
+    @Test
+    @DisplayName("깨진 문자열 토큰은 TokenInvalidException을 던진다.")
+    void 깨진_문자열은_TokenInvalidException() {
+        Assertions.assertThatThrownBy(() -> jwtUtil.validateAccessToken("garbage"))
+                .isInstanceOf(TokenInvalidException.class);
+    }
+
+    @Test
+    @DisplayName("다른 시크릿으로 서명된 토큰은 TokenInvalidException을 던진다.")
+    void 서명_불일치는_TokenInvalidException() {
+        JwtUtil otherSecretJwtUtil = new JwtUtil("other-secret-please-change-0123456789abcdef");
+        String foreignToken = otherSecretJwtUtil.createJwt(1L, TokenKinds.ACCESS_TOKEN, "MEMBER");
+
+        Assertions.assertThatThrownBy(() -> jwtUtil.validateAccessToken(foreignToken))
+                .isInstanceOf(TokenInvalidException.class);
+    }
 }

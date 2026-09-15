@@ -3,8 +3,7 @@ package com.nhnacademy.authservice.auth.service;
 import com.nhnacademy.authservice.TestSecurityConfig;
 import com.nhnacademy.authservice.auth.dto.TokenResponse;
 import com.nhnacademy.authservice.auth.jwt.TokenIssuer;
-import com.nhnacademy.authservice.global.error.exception.InvalidRefreshTokenException;
-import com.nhnacademy.authservice.global.error.exception.LockAcquisitionException;
+import com.nhnacademy.authservice.global.error.exception.AuthException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -55,7 +54,7 @@ class AuthServiceConcurrencyTest {
                     TokenResponse response = authService.reissue(refreshToken);
                     successCount.incrementAndGet();
                     successResponses.add(response);
-                } catch (InvalidRefreshTokenException | LockAcquisitionException e) {
+                } catch (AuthException e) {
                     // 예상된 실패 — 재사용 탐지 또는 락 대기 초과
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();

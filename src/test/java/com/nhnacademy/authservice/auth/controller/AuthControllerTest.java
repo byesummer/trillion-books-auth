@@ -1,20 +1,13 @@
 package com.nhnacademy.authservice.auth.controller;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.doNothing;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nhnacademy.authservice.auth.dto.LoginRequest;
 import com.nhnacademy.authservice.auth.dto.TokenResponse;
 import com.nhnacademy.authservice.auth.service.AuthService;
 import com.nhnacademy.authservice.global.error.exception.MemberStateConflictException;
+import com.nhnacademy.authservice.global.error.exception.TokenExpiredException;
 import com.nhnacademy.authservice.member.entity.MemberState;
-import java.util.Map;
+import io.jsonwebtoken.Jwts;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,6 +18,14 @@ import org.springframework.http.MediaType;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+
+import java.util.Map;
+
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.doNothing;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(controllers = AuthController.class)
 @AutoConfigureMockMvc(addFilters = false)
@@ -51,6 +52,21 @@ class AuthControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(header().string("X-Member-Id", "1"))
                 .andExpect(header().string("X-Member-Role", "USER"));
+    }
+
+    @Test
+    @DisplayName("만료된 토큰으로 검증 요청 시 401과 X-Auth-Error: token_expired 헤더를 반환한다")
+    void validateToken_expired() throws Exception {
+        // given
+        String authHeader = "Bearer expired-token";
+        given(authService.validateToken(authHeader))
+                .willThrow(new TokenExpiredException(Jwts.claims().build()));
+
+        // when & then
+        mockMvc.perform(post("/auth/validate")
+                        .header(HttpHeaders.AUTHORIZATION, authHeader))
+                .andExpect(status().isUnauthorized())
+                .andExpect(header().string("X-Auth-Error", "token_expired"));
     }
 
     @Test

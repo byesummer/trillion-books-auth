@@ -5,7 +5,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -15,7 +18,12 @@ import com.nhnacademy.authservice.auth.dto.TokenResponse;
 import com.nhnacademy.authservice.auth.jwt.JwtUtil;
 import com.nhnacademy.authservice.auth.jwt.TokenIssuer;
 import com.nhnacademy.authservice.auth.repository.RefreshTokenRepository;
+import com.nhnacademy.authservice.global.error.exception.TokenBlacklistedException;
+import com.nhnacademy.authservice.global.error.exception.TokenExpiredException;
 import com.nhnacademy.authservice.member.entity.Member;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.Jwts;
+import org.springframework.data.redis.RedisConnectionFailureException;
 import com.nhnacademy.authservice.member.entity.MemberRole;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -107,8 +115,7 @@ class AuthServiceTest {
 
             // when & then
             assertThatThrownBy(() -> authService.validateToken(header))
-                    .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessage("Blacklisted token");
+                    .isInstanceOf(TokenBlacklistedException.class);
         }
     }
 
@@ -137,6 +144,43 @@ class AuthServiceTest {
                     anyLong(),
                     eq(TimeUnit.MILLISECONDS)
             );
+        }
+
+        @Test
+        @DisplayName("만료된 액세스 토큰으로 로그아웃해도 RT 세션은 정리된다 (블랙리스트 적재만 스킵)")
+        void logout_expiredAccessToken_stillDeletesSession() {
+            // given
+            String header = "Bearer expired-token";
+            String token = "expired-token";
+            Claims claims = Jwts.claims().subject("1").build();
+            when(tokenParser.getToken(header)).thenReturn(token);
+            when(jwtUtil.getMemberId(token)).thenThrow(new TokenExpiredException(claims));
+
+            // when
+            authService.logout(header);
+
+            // then
+            verify(refreshTokenRepository).deleteById(1L);
+            verify(redisTemplate, never()).opsForValue();
+        }
+
+        @Test
+        @DisplayName("Redis 장애로 블랙리스트 적재가 실패하면 예외가 전파된다 (조용히 200을 반환하지 않는다)")
+        void logout_RedisFailure_propagates() {
+            // given
+            String header = "Bearer token";
+            String token = "token";
+            long expirationTime = System.currentTimeMillis() + 100000;
+
+            when(tokenParser.getToken(header)).thenReturn(token);
+            when(jwtUtil.getExpiration(token)).thenReturn(expirationTime);
+            when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+            doThrow(new RedisConnectionFailureException("Redis down"))
+                    .when(valueOperations).set(anyString(), anyString(), anyLong(), any());
+
+            // when & then
+            assertThatThrownBy(() -> authService.logout(header))
+                    .isInstanceOf(RedisConnectionFailureException.class);
         }
     }
 }
