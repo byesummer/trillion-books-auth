@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nhnacademy.authservice.auth.dto.LoginRequest;
 import com.nhnacademy.authservice.auth.dto.TokenResponse;
 import com.nhnacademy.authservice.auth.service.AuthService;
+import com.nhnacademy.authservice.auth.service.OAuth2CodeService;
 import com.nhnacademy.authservice.global.error.exception.MemberStateConflictException;
 import com.nhnacademy.authservice.global.error.exception.TokenExpiredException;
 import com.nhnacademy.authservice.member.entity.MemberState;
@@ -37,6 +38,8 @@ class AuthControllerTest {
 
     @MockitoBean
     private AuthService authService;
+    @MockitoBean
+    private OAuth2CodeService oAuth2CodeService;
 
     @Test
     @DisplayName("토큰 검증 성공 시 회원 정보를 헤더에 담아 200 OK를 반환한다")

@@ -2,8 +2,10 @@ package com.nhnacademy.authservice.auth.controller;
 
 import com.nhnacademy.authservice.auth.controller.docs.AuthControllerDocs;
 import com.nhnacademy.authservice.auth.dto.LoginRequest;
+import com.nhnacademy.authservice.auth.dto.OAuth2ExchangeRequest;
 import com.nhnacademy.authservice.auth.dto.TokenResponse;
 import com.nhnacademy.authservice.auth.service.AuthService;
+import com.nhnacademy.authservice.auth.service.OAuth2CodeService;
 import com.nhnacademy.authservice.global.error.ErrorResponse;
 import com.nhnacademy.authservice.global.error.exception.MemberStateConflictException;
 import com.nhnacademy.authservice.member.entity.MemberState;
@@ -25,6 +27,7 @@ import java.util.Map;
 public class AuthController implements AuthControllerDocs {
 
     private final AuthService authService;
+    private final OAuth2CodeService oAuth2CodeService;
 
     @Override
     @PostMapping("/validate")
@@ -48,6 +51,11 @@ public class AuthController implements AuthControllerDocs {
         } catch (Exception ex) {
             return handleLoginException(ex);
         }
+    }
+
+    @PostMapping("/oauth2/exchange")
+    public ResponseEntity<TokenResponse> exchangeOAuth2Code(@Valid @RequestBody OAuth2ExchangeRequest request) {
+        return ResponseEntity.ok(oAuth2CodeService.exchange(request.code()));
     }
 
     @PostMapping("/logout")
