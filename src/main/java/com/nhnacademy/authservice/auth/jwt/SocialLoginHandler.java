@@ -1,9 +1,9 @@
 package com.nhnacademy.authservice.auth.jwt;
 
-import com.nhnacademy.authservice.auth.dto.TokenResponse;
 import com.nhnacademy.authservice.auth.dto.oauth2.CustomOAuth2User;
 import com.nhnacademy.authservice.auth.oauth2.HttpCookieOAuth2AuthorizationRequestRepository;
 import com.nhnacademy.authservice.auth.repository.RefreshTokenRepository;
+import com.nhnacademy.authservice.auth.service.OAuth2CodeService;
 import com.nhnacademy.authservice.global.error.exception.MemberNotFoundException;
 import com.nhnacademy.authservice.member.entity.Member;
 import com.nhnacademy.authservice.member.entity.MemberState;
@@ -29,7 +29,7 @@ public class SocialLoginHandler extends SimpleUrlAuthenticationSuccessHandler {
     private final RefreshTokenRepository refreshTokenRepository;
     private final MemberRepository memberRepository;
     private final HttpCookieOAuth2AuthorizationRequestRepository authorizationRequestRepository;
-    private final TokenIssuer tokenIssuer;
+    private final OAuth2CodeService oAuth2CodeService;
 
     // 프론트 서버 주소
     @Value("${front.server.url:http://localhost:10402}")
@@ -73,25 +73,21 @@ public class SocialLoginHandler extends SimpleUrlAuthenticationSuccessHandler {
 
         Long memberId = member.getMemberId();
         String memberRole = member.getMemberRole().toString();
-        TokenResponse tokenResponse = tokenIssuer.issue(memberId, memberRole);
-        String targetUrl;
         String memberOauthId = member.getMemberOauthId();
+        String targetUrl;
 
-        // 권한에 따른 리다이렉트 분기
+        String code = oAuth2CodeService.issueCode(memberId, memberRole);
+
         if ("ROLE_GUEST".equals(memberStatus)) {
-            // 신규 회원이면 -> 추가 정보 입력 페이지로 이동
             targetUrl = UriComponentsBuilder.fromUriString(frontServerUrl)
                     .path("/members/social-signup")
-                    .queryParam("accessToken", tokenResponse.accessToken())
-                    .queryParam("refreshToken", tokenResponse.refreshToken())
+                    .queryParam("code", code)
                     .queryParam("memberOauthId", memberOauthId)
                     .build().toUriString();
         } else {
-            // 기존 회원이면 -> 로그인 성공 처리 (메인 페이지)
             targetUrl = UriComponentsBuilder.fromUriString(frontServerUrl)
                     .path("/login/oauth2/success")
-                    .queryParam("accessToken", tokenResponse.accessToken())
-                    .queryParam("refreshToken", tokenResponse.refreshToken())
+                    .queryParam("code", code)
                     .build().toUriString();
         }
         clearAuthenticationAttributes(request, response);
