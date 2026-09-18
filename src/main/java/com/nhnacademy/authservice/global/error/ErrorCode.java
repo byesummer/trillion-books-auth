@@ -16,6 +16,7 @@ public enum ErrorCode {
     OAUTH_EMAIL_NOT_FOUND(HttpStatus.UNAUTHORIZED, "소셜 계정에서 이메일을 가져오지 못했습니다."),
     LOCK_ACQUISITION_FAILED(HttpStatus.SERVICE_UNAVAILABLE, "요청이 몰려 처리하지 못했습니다. 잠시 후 다시 시도해주세요."),
     OAUTH_CODE_INVALID(HttpStatus.UNAUTHORIZED, "유효하지 않거나 이미 사용된 코드입니다."),
+    OAUTH_REQUEST_SERIALIZATION_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "인증 요청 정보를 저장하지 못했습니다."),
 
     // 프레임워크(Spring Security 등)가 던지는 예외용
     VALIDATION_FAILED(HttpStatus.BAD_REQUEST, "입력값이 유효하지 않습니다."),

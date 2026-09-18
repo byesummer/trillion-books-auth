@@ -1,14 +1,21 @@
 package com.nhnacademy.authservice.auth.oauth2;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nhnacademy.authservice.global.error.exception.OAuth2RequestSerializationException;
 import com.nhnacademy.authservice.global.util.CookieUtils;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.jackson2.SecurityJackson2Modules;
+import org.springframework.security.oauth2.client.jackson2.OAuth2ClientJackson2Module;
 import org.springframework.security.oauth2.client.web.AuthorizationRequestRepository;
 import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequest;
 import org.springframework.stereotype.Component;
-import org.springframework.util.SerializationUtils;
+
+import java.io.IOException;
 import java.util.Base64;
 
 @Slf4j
@@ -20,6 +27,15 @@ public class HttpCookieOAuth2AuthorizationRequestRepository
     public static final String OAUTH2_AUTHORIZATION_REQUEST_COOKIE_NAME = "oauth2_auth_request";
     public static final String REDIRECT_URI_PARAM_COOKIE_NAME = "redirect_uri";
     private static final int cookieExpireSeconds = 180;
+    private final ObjectMapper objectMapper = buildObjectMapper();
+
+    private static ObjectMapper buildObjectMapper() {
+        ClassLoader loader = HttpCookieOAuth2AuthorizationRequestRepository.class.getClassLoader();
+        ObjectMapper mapper = new ObjectMapper();
+        mapper.registerModules(SecurityJackson2Modules.getModules(loader));
+        mapper.registerModule(new OAuth2ClientJackson2Module());
+        return mapper;
+    }
 
     @Override
     public OAuth2AuthorizationRequest loadAuthorizationRequest(HttpServletRequest request) {
@@ -60,10 +76,19 @@ public class HttpCookieOAuth2AuthorizationRequestRepository
 
     // 직렬화/역직렬화
     private String serialize(Object object) {
-        return Base64.getUrlEncoder().encodeToString(SerializationUtils.serialize(object));
+        try {
+            return Base64.getUrlEncoder().encodeToString(objectMapper.writeValueAsBytes(object));
+        } catch (JsonProcessingException e) {
+            throw new OAuth2RequestSerializationException();
+        }
     }
 
-    private <T> T deserialize(jakarta.servlet.http.Cookie cookie, Class<T> cls) {
-        return cls.cast(SerializationUtils.deserialize(Base64.getUrlDecoder().decode(cookie.getValue())));
+    private <T> T deserialize(Cookie cookie, Class<T> cls) {
+        try{
+            return objectMapper.readValue(Base64.getUrlDecoder().decode(cookie.getValue()),cls);
+        } catch (IOException e) {
+            log.warn("OAuth2AuthorizationRequest 쿠키 역직렬화 실패: {}", e.getMessage());
+            return null;
+        }
     }
 }
