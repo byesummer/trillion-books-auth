@@ -86,7 +86,7 @@ public class HttpCookieOAuth2AuthorizationRequestRepository
     private <T> T deserialize(Cookie cookie, Class<T> cls) {
         try{
             return objectMapper.readValue(Base64.getUrlDecoder().decode(cookie.getValue()),cls);
-        } catch (IOException e) {
+        } catch (IOException | IllegalArgumentException e) {
             log.warn("OAuth2AuthorizationRequest 쿠키 역직렬화 실패: {}", e.getMessage());
             return null;
         }
